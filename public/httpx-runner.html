@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>HTTPX Runner</title>
+    <link rel="stylesheet" type="text/css" href="/styles.css">
+    <style>
+      .button {
+        display: inline-block;
+        margin: 10px;
+        padding: 10px 20px;
+        background-color: #333;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 5px;
+        border: 1px solid #fff; /* Added border */
+        transition: background-color 0.3s ease;
+      }
+
+      .button:hover {
+        background-color: #555;
+      }
+
+      .back-button {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="button back-button" href="/">Back</a>
+    <div class="container">
+      <h1>HTTPX Runner</h1>
+      <div class="input-container">
+        <textarea id="urlInput" placeholder="Enter URLs here"></textarea>
+        <button class="button" onclick="sendURLs()">Send URLs</button>
+        <button class="button" onclick="clearResults()">Clear Results</button>
+      </div>
+      <div id="output"></div>
+    </div>
+    <script>
+      const outputDiv = document.getElementById('output');
+      const socket = new WebSocket('ws://192.168.68.132:3000');
+
+      socket.onmessage = function(event) {
+        const output = event.data;
+        const lines = output.split('\n');
+        lines.forEach(line => {
+          const formattedOutput = formatOutput(line);
+          const p = document.createElement('p');
+          p.innerHTML = formattedOutput;
+          outputDiv.appendChild(p);
+        });
+      };
+
+      function sendURLs() {
+        const urls = document.getElementById('urlInput').value;
+        const urlArray = urls.split('\n').map(url => url.trim()).filter(url => url !== '');
+        const urlStr = urlArray.join('\r\n');
+        console.log('Sending URLs:', urlStr);
+        socket.send(urlStr);
+      }
+
+      socket.onclose = function(event) {
+        console.log('WebSocket is closed now.');
+      };
+
+      function clearResults() {
+        outputDiv.innerHTML = '';
+      }
+
+      function formatOutput(output) {
+        output = output.replace(/\x1B\[\d+m/g, '');
+        const urlEndIndex = output.indexOf(' [');
+        const contentLengthEndIndex = output.indexOf('] [', urlEndIndex + 2);
+        const titleStartIndex = output.indexOf(' [', contentLengthEndIndex + 2);
+        const titleEndIndex = output.indexOf(']', titleStartIndex + 2);
+        const url = output.substring(0, urlEndIndex);
+        const status = output.substring(urlEndIndex, contentLengthEndIndex + 1);
+        const contentLength = output.substring(contentLengthEndIndex + 2, titleStartIndex);
+        const title = output.substring(titleStartIndex, titleEndIndex + 1);
+        const rest = output.substring(titleEndIndex + 1);
+        const clickableUrl = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="url">${url}</a>`;
+        const statusSpan = `<span class="text-white">${status}</span>`;
+        const contentLengthSpan = `<span class="text-white">${contentLength}</span>`;
+        const titleSpan = `<span class="text-yellow">${title}</span>`;
+        const restSpan = rest.replace(/\[([^\]]+)\]/g, '<span class="text-green">[$1]</span>');
+        return `${clickableUrl} ${statusSpan} ${contentLengthSpan} ${titleSpan} ${restSpan}`;
+      }
+    </script>
+  </body>
+</html>

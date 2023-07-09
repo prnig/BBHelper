@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Archive Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .button-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button-link:hover {
+            background-color: #0056b3;
+        }
+
+        #urlInput {
+            margin-bottom: 20px;
+            padding: 10px;
+            width: 300px;
+            color: #000;
+        }
+
+        .section {
+            margin-top: 30px;
+        }
+
+        .section h2 {
+            color: #fff;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a class="button-link back-button" href="/">Back</a>
+    <div class="container">
+        <h1>Archive Search</h1>
+        <input id="urlInput" type="text" placeholder="Enter a domain">
+        <div id="enumerationButtonsContainer" class="section">
+            <h2>Enumeration</h2>
+        </div>
+        <div id="dorkingButtonsContainer" class="section">
+            <h2>Dorking (General)</h2>
+        </div>
+        <div id="twitterhacksButtonsContainer" class="section">
+            <h2>Dorking (Community Findings - Twitter Hacks) </h2>
+        </div>
+    </div>
+    <script>
+        const sites = {
+            'enumeration': {
+                'WebArchive': url => `https://web.archive.org/cdx/search/cdx?url=*.${url}&fl=original&collapse=urlkey`,
+                'crt.sh': url => `https://crt.sh/?q=%.${url}`,
+                'WebScout lookup': url => `https://webscout.io/lookup/${url}`,
+                'UrlScan Search': url => `https://urlscan.io/search/#${url}`,
+                'Shodan SSL Search': url => `https://www.shodan.io/search/facet?query=ssl%3A%22${url}%22+200&facet=http.title`,
+                'Shodan CN SSL Search': url => `https://www.shodan.io/search/facet?query=ssl.cert.subject.CN:"${url}"+200&facet=http.title`
+            },
+            'dorking': {
+                'Yandex site:Search': url => `https://yandex.com/search/?text=site%3A${url}`,
+                'Bing site:Search': url => `https://www.bing.com/search?q=site%3A${url}`,
+                'Find Subdomains (Google)': url => `https://www.google.com/search?q=site:*.${url}&tbs=qdr:w`,
+                'Find Sub-Subdomains (Google)': url => `https://www.google.com/search?q=site:*.*.${url}`,
+                'Find Sub-Sub-Subdomains (Google)': url => `https://www.google.com/search?q=site:*.*.*.${url}`,
+                
+            },
+            'twitterhacks': {
+                'Index of / (Shodan)': url => `https://www.shodan.io/search?query=ssl%3A%22${url}%22+http.title%3A%22index+of+%2F+%22`,
+                'Gitlab XML (Google)': url => `https://www.google.com/search?q=site:*.${url}+%E2%80%9Cgitlab%E2%80%9D+ext:xml`,
+                'APIKEY Exposed (Google)': url => `https://www.google.com/search?q=site%3A*.${url}+intext%3AAPIKey+ext%3Ajs+|+xml+|+yml+|+txt+|+conf+|+py+-github+-stackoverflow+intitle%3A"index+of"`,
+                'Log files (Google)': url => `https://www.google.com/search?q=site%3A*.${url}+filetype:log`,
+                'app.yaml (Google)': url => `https://www.google.com/search?q=site%3A${url}+inurl%3A%22app.yaml%22+intext%3A%22runtime%3A%22+ext%3Ayaml`,
+                'Login Panels (Google)': url => `https://www.google.com/search?q=site:${url}+inurl:admin+|+administrator+|+adm+|+login+|+l0gin+|+wp-login+|+signin+|+sign+in+|+auth`,
+                'Php files (Google)': url => `https://www.google.com/search?q=site:${url}+ext:php`,
+                'Open Redirect Search (google)': url => `https://www.google.com/search?q=site%3A${url}+inurl%3Aredirect%3D+|+inurl%3Areturn%3D+|+inurl%3Asrc%3D+|+inurl%3Anext%3D+|+inurl%3Aforward%3D+|+inurl%3Acallback%3D+|+inurl%3Adest%3D+|+inurl%3Adestination%3D+|+inurl%3Acontinue%3D+|+inurl%3Agoto%3D+|+inurl%3Atarget%3D+|+inurl%3Aview%3D+|+inurl%3Awindow%3D+|+inurl%3Aredir+|+inurl%3Asrc%3Dhttp+|+inurl%3Ar%3Dhttp+|+inurl%3Aopen%3D+|+inurl%3Afeed%3D+|+inurl%3Apath%3D+|+inurl%3Auri%3D+|+inurl%3Asite%3D`,
+                'Google IPV4 Search (Insert the Company name from ssl)': url => `https://www.google.com/search?q=(${url}))%20(site%3A*.*.256.*%20%7Csite%3A*.*.255.*%20%7Csite%3A*.*.254.*%20%7Csite%3A*.*.253.*%20%7Csite%3A*.*.252.*%20%7Csite%3A*.*.251.*%20%7Csite%3A*.*.250.*%20%7Csite%3A*.*.249.*%20%7Csite%3A*.*.248.*%20%7Csite%3A*.*.247.*%20%7Csite%3A*.*.246.*%20%7Csite%3A*.*.245.*%20%7Csite%3A*.*.244.*%20%7Csite%3A*.*.243.*%20%7Csite%3A*.*.242.*%20%7Csite%3A*.*.241.*%20%7Csite%3A*.*.240.*%20%7Csite%3A*.*.239.*%20%7Csite%3A*.*.238.*%20%7Csite%3A*.*.237.*%20%7Csite%3A*.*.236.*%20%7Csite%3A*.*.235.*%20%7Csite%3A*.*.234.*%20%7Csite%3A*.*.233.*%20%7Csite%3A*.*.232.*%20%7Csite%3A*.*.231.*%20%7Csite%3A*.*.230.*%20%7Csite%3A*.*.229.*%20%7Csite%3A*.*.228.*%20%7Csite%3A*.*.227.*%20%7Csite%3A*.*.226.*%20%7Csite%3A*.*.225.*%20%7Csite%3A*.*.224.*%20%7Csite%3A*.*.223.*%20%7Csite%3A*.*.222.*%20%7Csite%3A*.*.221.*%20%7Csite%3A*.*.220.*%20%7Csite%3A*.*.219.*%20%7Csite%3A*.*.218.*%20%7Csite%3A*.*.217.*%20%7Csite%3A*.*.216.*%20%7Csite%3A*.*.215.*%20%7Csite%3A*.*.214.*%20%7Csite%3A*.*.213.*%20%7Csite%3A*.*.212.*%20%7Csite%3A*.*.211.*%20%7Csite%3A*.*.210.*%20%7Csite%3A*.*.209.*%20%7Csite%3A*.*.208.*%20%7Csite%3A*.*.207.*%20%7Csite%3A*.*.206.*%20%7Csite%3A*.*.205.*%20%7Csite%3A*.*.204.*%20%7Csite%3A*.*.203.*%20%7Csite%3A*.*.202.*%20%7Csite%3A*.*.201.*%20%7Csite%3A*.*.200.*%20%7Csite%3A*.*.199.*%20%7Csite%3A*.*.198.*%20%7Csite%3A*.*.197.*%20%7Csite%3A*.*.196.*%20%7Csite%3A*.*.195.*%20%7Csite%3A*.*.194.*%20%7Csite%3A*.*.193.*%20%7Csite%3A*.*.192.*%20%7Csite%3A*.*.191.*%20%7Csite%3A*.*.190.*%20%7Csite%3A*.*.189.*%20%7Csite%3A*.*.188.*%20%7Csite%3A*.*.187.*%20%7Csite%3A*.*.186.*%20%7Csite%3A*.*.185.*%20%7Csite%3A*.*.184.*%20%7Csite%3A*.*.183.*%20%7Csite%3A*.*.182.*%20%7Csite%3A*.*.181.*%20%7Csite%3A*.*.180.*%20%7Csite%3A*.*.179.*%20%7Csite%3A*.*.178.*%20%7Csite%3A*.*.177.*%20%7Csite%3A*.*.176.*%20%7Csite%3A*.*.175.*%20%7Csite%3A*.*.174.*%20%7Csite%3A*.*.173.*%20%7Csite%3A*.*.172.*%20%7Csite%3A*.*.171.*%20%7Csite%3A*.*.170.*%20%7Csite%3A*.*.169.*%20%7Csite%3A*.*.168.*%20%7Csite%3A*.*.167.*%20%7Csite%3A*.*.166.*%20%7Csite%3A*.*.165.*%20%7Csite%3A*.*.164.*%20%7Csite%3A*.*.163.*%20%7Csite%3A*.*.162.*%20%7Csite%3A*.*.161.*%20%7Csite%3A*.*.160.*%20%7Csite%3A*.*.159.*%20%7Csite%3A*.*.158.*%20%7Csite%3A*.*.157.*%20%7Csite%3A*.*.156.*%20%7Csite%3A*.*.155.*%20%7Csite%3A*.*.154.*%20%7Csite%3A*.*.153.*%20%7Csite%3A*.*.152.*%20%7Csite%3A*.*.151.*%20%7Csite%3A*.*.150.*%20%7Csite%3A*.*.149.*%20%7Csite%3A*.*.148.*%20%7Csite%3A*.*.147.*%20%7Csite%3A*.*.146.*%20%7Csite%3A*.*.145.*%20%7Csite%3A*.*.144.*%20%7Csite%3A*.*.143.*%20%7Csite%3A*.*.142.*%20%7Csite%3A*.*.141.*%20%7Csite%3A*.*.140.*%20%7Csite%3A*.*.139.*%20%7Csite%3A*.*.138.*%20%7Csite%3A*.*.137.*%20%7Csite%3A*.*.136.*%20%7Csite%3A*.*.135.*%20%7Csite%3A*.*.134.*%20%7Csite%3A*.*.133.*%20%7Csite%3A*.*.132.*%20%7Csite%3A*.*.131.*%20%7Csite%3A*.*.130.*%20%7Csite%3A*.*.129.*%20%7Csite%3A*.*.128.*%20%7Csite%3A*.*.127.*%20%7Csite%3A*.*.126.*%20%7Csite%3A*.*.125.*%20%7Csite%3A*.*.124.*%20%7Csite%3A*.*.123.*%20%7Csite%3A*.*.122.*%20%7Csite%3A*.*.121.*%20%7Csite%3A*.*.120.*%20%7Csite%3A*.*.119.*%20%7Csite%3A*.*.118.*%20%7Csite%3A*.*.117.*%20%7Csite%3A*.*.116.*%20%7Csite%3A*.*.115.*%20%7Csite%3A*.*.114.*%20%7Csite%3A*.*.113.*%20%7Csite%3A*.*.112.*%20%7Csite%3A*.*.111.*%20%7Csite%3A*.*.110.*%20%7Csite%3A*.*.109.*%20%7Csite%3A*.*.108.*%20%7Csite%3A*.*.107.*%20%7Csite%3A*.*.106.*%20%7Csite%3A*.*.105.*%20%7Csite%3A*.*.104.*%20%7Csite%3A*.*.103.*%20%7Csite%3A*.*.102.*%20%7Csite%3A*.*.101.*%20%7Csite%3A*.*.100.*%20%7Csite%3A*.*.99.*%20%7Csite%3A*.*.98.*%20%7Csite%3A*.*.97.*%20%7Csite%3A*.*.96.*%20%7Csite%3A*.*.95.*%20%7Csite%3A*.*.94.*%20%7Csite%3A*.*.93.*%20%7Csite%3A*.*.92.*%20%7Csite%3A*.*.91.*%20%7Csite%3A*.*.90.*%20%7Csite%3A*.*.89.*%20%7Csite%3A*.*.88.*%20%7Csite%3A*.*.87.*%20%7Csite%3A*.*.86.*%20%7Csite%3A*.*.85.*%20%7Csite%3A*.*.84.*%20%7Csite%3A*.*.83.*%20%7Csite%3A*.*.82.*%20%7Csite%3A*.*.81.*%20%7Csite%3A*.*.80.*%20%7Csite%3A*.*.79.*%20%7Csite%3A*.*.78.*%20%7Csite%3A*.*.77.*%20%7Csite%3A*.*.76.*%20%7Csite%3A*.*.75.*%20%7Csite%3A*.*.74.*%20%7Csite%3A*.*.73.*%20%7Csite%3A*.*.72.*%20%7Csite%3A*.*.71.*%20%7Csite%3A*.*.70.*%20%7Csite%3A*.*.69.*%20%7Csite%3A*.*.68.*%20%7Csite%3A*.*.67.*%20%7Csite%3A*.*.66.*%20%7Csite%3A*.*.65.*%20%7Csite%3A*.*.64.*%20%7Csite%3A*.*.63.*%20%7Csite%3A*.*.62.*%20%7Csite%3A*.*.61.*%20%7Csite%3A*.*.60.*%20%7Csite%3A*.*.59.*%20%7Csite%3A*.*.58.*%20%7Csite%3A*.*.57.*%20%7Csite%3A*.*.56.*%20%7Csite%3A*.*.55.*%20%7Csite%3A*.*.54.*%20%7Csite%3A*.*.53.*%20%7Csite%3A*.*.52.*%20%7Csite%3A*.*.51.*%20%7Csite%3A*.*.50.*%20%7Csite%3A*.*.49.*%20%7Csite%3A*.*.48.*%20%7Csite%3A*.*.47.*%20%7Csite%3A*.*.46.*%20%7Csite%3A*.*.45.*%20%7Csite%3A*.*.44.*%20%7Csite%3A*.*.43.*%20%7Csite%3A*.*.42.*%20%7Csite%3A*.*.41.*%20%7Csite%3A*.*.40.*%20%7Csite%3A*.*.39.*%20%7Csite%3A*.*.38.*%20%7Csite%3A*.*.37.*%20%7Csite%3A*.*.36.*%20%7Csite%3A*.*.35.*%20%7Csite%3A*.*.34.*%20%7Csite%3A*.*.33.*%20%7Csite%3A*.*.32.*%20%7Csite%3A*.*.31.*%20%7Csite%3A*.*.30.*%20%7Csite%3A*.*.29.*%20%7Csite%3A*.*.28.*%20%7Csite%3A*.*.27.*%20%7Csite%3A*.*.26.*%20%7Csite%3A*.*.25.*%20%7Csite%3A*.*.24.*%20%7Csite%3A*.*.23.*%20%7Csite%3A*.*.22.*%20%7Csite%3A*.*.21.*%20%7Csite%3A*.*.20.*%20%7Csite%3A*.*.19.*%20%7Csite%3A*.*.18.*%20%7Csite%3A*.*.17.*%20%7Csite%3A*.*.16.*%20%7Csite%3A*.*.15.*%20%7Csite%3A*.*.14.*%20%7Csite%3A*.*.13.*%20%7Csite%3A*.*.12.*%20%7Csite%3A*.*.11.*%20%7Csite%3A*.*.10.*%20%7Csite%3A*.*.9.*%20%7Csite%3A*.*.8.*%20%7Csite%3A*.*.7.*%20%7Csite%3A*.*.6.*%20%7Csite%3A*.*.5.*%20%7Csite%3A*.*.4.*%20%7Csite%3A*.*.3.*%20%7Csite%3A*.*.2.*%20%7Csite%3A*.*.1.*%20%7Csite%3A*.*.0.*%20)`
+            },
+        };
+
+        for (const [section, siteList] of Object.entries(sites)) {
+            var buttonsContainer = document.getElementById(section + 'ButtonsContainer');
+            for (const [site, urlTemplate] of Object.entries(siteList)) {
+                var a = document.createElement('a');
+                a.className = 'button-link';
+                a.target = '_blank';
+                a.textContent = site;
+                a.href = '#';
+                a.addEventListener('mousedown', function(e) {
+                    const url = document.getElementById('urlInput').value;
+                    if (!url) {
+                        e.preventDefault();
+                        alert('Please enter a domain!');
+                    } else {
+                        e.currentTarget.href = urlTemplate(url);
+                    }
+                });
+                buttonsContainer.appendChild(a);
+            }
+        }
+    </script>
+</body>
+</html>
